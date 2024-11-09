@@ -1,15 +1,14 @@
+from typing import TYPE_CHECKING
+
 from .base import BaseOptions, BaseType, BaseTypeMeta
 from .field import Field
 from .interface import Interface
 from .utils import yank_fields_from_attrs
 
-try:
-    from dataclasses import make_dataclass, field
-except ImportError:
-    from ..pyutils.dataclasses import make_dataclass, field  # type: ignore
-# For static type checking with Mypy
-MYPY = False
-if MYPY:
+from dataclasses import make_dataclass, field
+
+# For static type checking with type checker
+if TYPE_CHECKING:
     from typing import Dict, Iterable, Type  # NOQA
 
 

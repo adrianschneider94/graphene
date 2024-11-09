@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 from ..utils.deprecated import warn_deprecation
 from ..utils.get_unbound_function import get_unbound_function
 from ..utils.props import props
@@ -6,9 +8,8 @@ from .objecttype import ObjectType, ObjectTypeOptions
 from .utils import yank_fields_from_attrs
 from .interface import Interface
 
-# For static type checking with Mypy
-MYPY = False
-if MYPY:
+# For static type checking with type checker
+if TYPE_CHECKING:
     from .argument import Argument  # NOQA
     from typing import Dict, Type, Callable, Iterable  # NOQA
 
@@ -29,21 +30,21 @@ class Mutation(ObjectType):
 
     .. code:: python
 
-        from graphene import Mutation, ObjectType, String, Boolean, Field
+        import graphene
 
-        class CreatePerson(Mutation):
+        class CreatePerson(graphene.Mutation):
             class Arguments:
-                name = String()
+                name = graphene.String()
 
-            ok = Boolean()
-            person = Field(Person)
+            ok = graphene.Boolean()
+            person = graphene.Field(Person)
 
             def mutate(parent, info, name):
                 person = Person(name=name)
                 ok = True
                 return CreatePerson(person=person, ok=ok)
 
-        class Mutation(ObjectType):
+        class Mutation(graphene.ObjectType):
             create_person = CreatePerson.Field()
 
     Meta class options (optional):

@@ -1,3 +1,4 @@
+from enum import Enum as PyEnum
 import inspect
 from functools import partial
 
@@ -169,10 +170,16 @@ class TypeMap(dict):
         values = {}
         for name, value in graphene_type._meta.enum.__members__.items():
             description = getattr(value, "description", None)
-            deprecation_reason = getattr(value, "deprecation_reason", None)
+            # if the "description" attribute is an Enum, it is likely an enum member
+            # called description, not a description property
+            if isinstance(description, PyEnum):
+                description = None
             if not description and callable(graphene_type._meta.description):
                 description = graphene_type._meta.description(value)
 
+            deprecation_reason = getattr(value, "deprecation_reason", None)
+            if isinstance(deprecation_reason, PyEnum):
+                deprecation_reason = None
             if not deprecation_reason and callable(
                 graphene_type._meta.deprecation_reason
             ):
@@ -233,11 +240,20 @@ class TypeMap(dict):
             else None
         )
 
+        def interfaces():
+            interfaces = []
+            for graphene_interface in graphene_type._meta.interfaces:
+                interface = self.add_type(graphene_interface)
+                assert interface.graphene_type == graphene_interface
+                interfaces.append(interface)
+            return interfaces
+
         return GrapheneInterfaceType(
             graphene_type=graphene_type,
             name=graphene_type._meta.name,
             description=graphene_type._meta.description,
             fields=partial(self.create_fields_for_type, graphene_type),
+            interfaces=interfaces,
             resolve_type=resolve_type,
         )
 
@@ -300,6 +316,7 @@ class TypeMap(dict):
                     default_value=field.default_value,
                     out_name=name,
                     description=field.description,
+                    deprecation_reason=field.deprecation_reason,
                 )
             else:
                 args = {}
@@ -311,6 +328,7 @@ class TypeMap(dict):
                         out_name=arg_name,
                         description=arg.description,
                         default_value=arg.default_value,
+                        deprecation_reason=arg.deprecation_reason,
                     )
                 subscribe = field.wrap_subscribe(
                     self.get_function_for_type(
@@ -376,19 +394,11 @@ class TypeMap(dict):
     def resolve_type(self, resolve_type_func, type_name, root, info, _type):
         type_ = resolve_type_func(root, info)
 
-        if not type_:
-            return_type = self[type_name]
-            return default_type_resolver(root, info, return_type)
-
         if inspect.isclass(type_) and issubclass(type_, ObjectType):
-            graphql_type = self.get(type_._meta.name)
-            assert graphql_type, f"Can't find type {type_._meta.name} in schema"
-            assert (
-                graphql_type.graphene_type == type_
-            ), f"The type {type_} does not match with the associated graphene type {graphql_type.graphene_type}."
-            return graphql_type
+            return type_._meta.name
 
-        return type_
+        return_type = self[type_name]
+        return default_type_resolver(root, info, return_type)
 
 
 class Schema:
